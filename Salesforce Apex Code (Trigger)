@@ -1,0 +1,37 @@
+trigger UpdateAccountLastModifiedDate on Contact (after insert, after update, after delete) {
+    
+    // Set to store Account Ids that need to be updated
+    Set<Id> accountIds = new Set<Id>();
+
+    // For Insert or Update events, gather the Account Ids related to the modified Contacts
+    if (Trigger.isInsert || Trigger.isUpdate) {
+        for (Contact con : Trigger.new) {
+            if (con.AccountId != null) {
+                accountIds.add(con.AccountId);
+            }
+        }
+    }
+    
+    // For Delete events, gather Account Ids related to the deleted Contacts
+    if (Trigger.isDelete) {
+        for (Contact con : Trigger.old) {
+            if (con.AccountId != null) {
+                accountIds.add(con.AccountId);
+            }
+        }
+    }
+    
+    // Fetch all the Account records that need to be updated
+    List<Account> accountsToUpdate = new List<Account>();
+    if (!accountIds.isEmpty()) {
+        for (Account acc : [SELECT Id FROM Account WHERE Id IN :accountIds]) {
+            acc.LastModifiedDate__c = System.now();  // Custom field to track the last modification
+            accountsToUpdate.add(acc);
+        }
+    }
+    
+    // Perform the update
+    if (!accountsToUpdate.isEmpty()) {
+        update accountsToUpdate;
+    }
+}
